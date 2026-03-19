@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM · Rule-Based Chatbot</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #00ffa3;
+    --accent2: #7b61ff;
+    --accent3: #ff6b6b;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --bot-bg: #14142a;
+    --user-bg: #0d2a1a;
+    --font-mono: 'Space Mono', monospace;
+    --font-sans: 'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  /* animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,163,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,163,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -40%;
+    left: -20%;
+    width: 70%;
+    height: 80%;
+    background: radial-gradient(ellipse, rgba(123,97,255,0.07) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    height: 92vh;
+    max-height: 820px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo-ring {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    animation: pulse-ring 3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .logo-ring::before {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+  }
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,163,0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(0,255,163,0); }
+  }
+
+  .header-text h1 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .header-text p {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .status-pill {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--accent);
+    background: rgba(0,255,163,0.07);
+    border: 1px solid rgba(0,255,163,0.2);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* Chat window */
+  .chat-window {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    scroll-behavior: smooth;
+  }
+  .chat-window::-webkit-scrollbar { width: 4px; }
+  .chat-window::-webkit-scrollbar-track { background: transparent; }
+  .chat-window::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Messages */
+  .msg {
+    display: flex;
+    gap: 10px;
+    animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+    max-width: 85%;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.bot { align-self: flex-start; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .bot .avatar {
+    background: rgba(0,255,163,0.1);
+    border: 1px solid rgba(0,255,163,0.3);
+    color: var(--accent);
+  }
+  .user .avatar {
+    background: rgba(123,97,255,0.15);
+    border: 1px solid rgba(123,97,255,0.35);
+    color: var(--accent2);
+  }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    position: relative;
+  }
+  .bot .bubble {
+    background: var(--bot-bg);
+    border: 1px solid var(--border);
+    border-top-left-radius: 3px;
+    color: var(--text);
+  }
+  .user .bubble {
+    background: var(--user-bg);
+    border: 1px solid rgba(0,255,163,0.15);
+    border-top-right-radius: 3px;
+    color: var(--text);
+  }
+
+  .bubble .label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .bot .bubble .label { color: rgba(0,255,163,0.5); }
+  .user .bubble .label { color: rgba(123,97,255,0.5); text-align: right; }
+
+  .tag-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Suggestions */
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .suggestion-label {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,163,0.05);
+  }
+
+  /* Input bar */
+  .input-bar {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 1px solid rgba(0,255,163,0.12);
+    border-radius: 0 0 16px 16px;
+  }
+
+  #user-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: none;
+    height: 46px;
+    line-height: 1.5;
+  }
+  #user-input:focus { border-color: rgba(0,255,163,0.4); }
+  #user-input::placeholder { color: var(--muted); }
+
+  #send-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    width: 46px;
+    height: 46px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  #send-btn:hover { background: #00e090; transform: scale(1.05); }
+  #send-btn svg { width: 18px; height: 18px; fill: #0a0a0f; }
+
+  /* Typing indicator */
+  .typing-bubble {
+    display: flex; gap: 5px; align-items: center;
+    padding: 14px 16px;
+  }
+  .typing-bubble span {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* Welcome hint */
+  .welcome {
+    text-align: center;
+    padding: 32px 20px;
+    color: var(--muted);
+  }
+  .welcome h2 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .welcome p {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.8;
+  }
+  .welcome .glyph {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    display: block;
+    filter: grayscale(0.3);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-ring"></div>
+    <div class="header-text">
+      <h1>AXIOM</h1>
+      <p>Rule-Based Conversational Agent · v1.0</p>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      ONLINE
+    </div>
+  </header>
+
+  <!-- Chat -->
+  <div class="chat-window" id="chat-window">
+    <div class="welcome" id="welcome-msg">
+      <span class="glyph">🤖</span>
+      <h2>Hello, I'm Axiom.</h2>
+      <p>Ask me about the weather, time, jokes, greetings,<br>math, your name, or just say hello.<br>I use rule-based pattern matching to respond.</p>
+    </div>
+  </div>
+
+  <!-- Suggestions -->
+  <div class="suggestions">
+    <div class="suggestion-label">Try asking →</div>
+    <button class="chip" onclick="sendChip(this)">Hello!</button>
+    <button class="chip" onclick="sendChip(this)">What's the time?</button>
+    <button class="chip" onclick="sendChip(this)">Tell me a joke</button>
+    <button class="chip" onclick="sendChip(this)">What's 15 × 8?</button>
+    <button class="chip" onclick="sendChip(this)">How are you?</button>
+    <button class="chip" onclick="sendChip(this)">My name is Alex</button>
+    <button class="chip" onclick="sendChip(this)">What can you do?</button>
+    <button class="chip" onclick="sendChip(this)">Bye!</button>
+  </div>
+
+  <!-- Input -->
+  <div class="input-bar">
+    <input type="text" id="user-input" placeholder="Type a message…" autocomplete="off" />
+    <button id="send-btn" onclick="handleSend()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ─── Rule Engine ───────────────────────────────────────────────────────────────
+const rules = [
+  // Greetings
+  {
+    pattern: /\b(hi|hello|hey|howdy|hiya|greetings|sup|what'?s up)\b/i,
+    tag: "GREETING",
+    tagColor: "rgba(0,255,163,0.15)",
+    tagText: "rgba(0,255,163,0.8)",
+    responses: [
+      "Hey there! Great to have you here. What's on your mind?",
+      "Hello! I'm Axiom, your rule-based assistant. How can I help?",
+      "Hi! Ask me anything — I'll do my best to answer.",
+      "Howdy! Ready to chat. What would you like to know?"
+    ]
+  },
+  // Farewells
+  {
+    pattern: /\b(bye|goodbye|see you|farewell|cya|later|take care|good night|gn)\b/i,
+    tag: "FAREWELL",
+    tagColor: "rgba(255,107,107,0.12)",
+    tagText: "rgba(255,107,107,0.8)",
+    responses: [
+      "Goodbye! It was nice talking with you. 👋",
+      "See you later! Come back anytime.",
+      "Take care! Have a wonderful day. 🌟",
+      "Farewell! Don't be a stranger."
+    ]
+  },
+  // How are you
+  {
+    pattern: /\b(how are you|how('?re| are) you doing|you okay|you alright|what'?s up with you|how do you feel)\b/i,
+    tag: "STATUS_CHECK",
+    tagColor: "rgba(123,97,255,0.12)",
+    tagText: "rgba(123,97,255,0.8)",
+    responses: [
+      "I'm running at full capacity — 100% uptime! How are you?",
+      "Doing great, thanks for asking! All my rules are firing correctly. 😄",
+      "I'm an AI, so I don't have feelings, but my logic circuits are happy to chat!"
+    ]
+  },
+  // Name capture
+  {
+    pattern: /my name is ([a-z]+)/i,
+    tag: "NAME_CAPTURE",
+    tagColor: "rgba(0,255,163,0.15)",
+    tagText: "rgba(0,255,163,0.8)",
+    dynamicResponse: (match) => {
+      const name = match[1];
+      window._userName = name;
+      return `Nice to meet you, **${name}**! I'll remember that. 🎉`;
+    }
+  },
+  // What's my name?
+  {
+    pattern: /what('?s| is) my name\??/i,
+    tag: "NAME_RECALL",
+    tagColor: "rgba(0,255,163,0.15)",
+    tagText: "rgba(0,255,163,0.8)",
+    dynamicResponse: () => window._userName
+      ? `Your name is **${window._userName}**! I remembered. 😊`
+      : "I don't know your name yet! Tell me: *My name is …*"
+  },
+  // Time
+  {
+    pattern: /\b(what('?s| is) the time|current time|what time is it|time now)\b/i,
+    tag: "TIME_QUERY",
+    tagColor: "rgba(255,200,0,0.12)",
+    tagText: "rgba(255,200,0,0.85)",
+    dynamicResponse: () => {
+      const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `The current time is **${t}**. ⏰`;
+    }
+  },
+  // Date
+  {
+    pattern: /\b(what('?s| is) (the )?date|what day is (it|today)|today'?s date)\b/i,
+    tag: "DATE_QUERY",
+    tagColor: "rgba(255,200,0,0.12)",
+    tagText: "rgba(255,200,0,0.85)",
+    dynamicResponse: () => {
+      const d = new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      return `Today is **${d}**. 📅`;
+    }
+  },
+  // Jokes
+  {
+    pattern: /\b(joke|funny|make me laugh|tell me something funny|humor)\b/i,
+    tag: "JOKE",
+    tagColor: "rgba(255,165,0,0.12)",
+    tagText: "rgba(255,165,0,0.9)",
+    responses: [
+      "Why don't scientists trust atoms? Because they make up everything! 😄",
+      "I told my computer I needed a break. Now it won't stop sending me Kit-Kat ads. 🍫",
+      "Why do programmers prefer dark mode? Because light attracts bugs! 🐛",
+      "Why did the robot go on vacation? To recharge its batteries! 🔋",
+      "What do you call a computer that sings? A Dell! 🎵",
+      "I'm reading a book about anti-gravity. It's impossible to put down! 📚"
+    ]
+  },
+  // Math — simple arithmetic
+  {
+    pattern: /(-?\d+(?:\.\d+)?)\s*([+\-×x*÷\/])\s*(-?\d+(?:\.\d+)?)/,
+    tag: "MATH",
+    tagColor: "rgba(0,200,255,0.12)",
+    tagText: "rgba(0,200,255,0.85)",
+    dynamicResponse: (match) => {
+      const a = parseFloat(match[1]);
+      const op = match[2];
+      const b = parseFloat(match[3]);
+      let result, opName;
+      if (op === '+')                { result = a + b; opName = '+'; }
+      else if (op === '-')           { result = a - b; opName = '−'; }
+      else if ('×x*'.includes(op))  { result = a * b; opName = '×'; }
+      else if ('÷/'.includes(op))   {
+        if (b === 0) return "Dividing by zero? That's a black hole right there! 🚫";
+        result = a / b; opName = '÷';
+      }
+      const formatted = Number.isInteger(result) ? result : parseFloat(result.toFixed(6));
+      return `**${a} ${opName} ${b} = ${formatted}** 🧮`;
+    }
+  },
+  // Weather
+  {
+    pattern: /\b(weather|temperature|forecast|raining|sunny|cloudy|snow)\b/i,
+    tag: "WEATHER",
+    tagColor: "rgba(100,180,255,0.12)",
+    tagText: "rgba(100,180,255,0.85)",
+    responses: [
+      "I can't fetch live weather data (I'm rule-based!), but I'd guess it's lovely wherever you are. ☀️",
+      "No real-time data here, but I hope your weather is as bright as this conversation! 🌤️",
+      "I wish I could check! Try a weather app for accurate info. 🌦️"
+    ]
+  },
+  // Name of bot
+  {
+    pattern: /\b(what('?s| is) your name|who are you|what are you called|your name)\b/i,
+    tag: "IDENTITY",
+    tagColor: "rgba(0,255,163,0.15)",
+    tagText: "rgba(0,255,163,0.8)",
+    responses: [
+      "I'm **Axiom** — a rule-based conversational agent. No neural nets, just clean if-else logic!",
+      "They call me **Axiom**. I work by matching patterns in what you say to predefined rules.",
+      "I'm **Axiom**, built entirely on deterministic rules — no AI models involved!"
+    ]
+  },
+  // Capabilities
+  {
+    pattern: /\b(what can you do|your (capabilities|features|skills)|help me|what do you know)\b/i,
+    tag: "CAPABILITIES",
+    tagColor: "rgba(123,97,255,0.12)",
+    tagText: "rgba(123,97,255,0.8)",
+    responses: [
+      "I can: say hello 👋, tell jokes 😂, do simple math 🧮, tell you the time ⏰, remember your name 🎯, and chat about the weather 🌤️ — all through rule-based pattern matching!",
+      "My skills: greetings, farewells, jokes, arithmetic, time/date queries, and some fun conversation — all powered by regex rules, no AI magic!"
+    ]
+  },
+  // Thanks
+  {
+    pattern: /\b(thank(s| you)|thx|ty|appreciate it|cheers)\b/i,
+    tag: "THANKS",
+    tagColor: "rgba(0,255,163,0.15)",
+    tagText: "rgba(0,255,163,0.8)",
+    responses: [
+      "You're welcome! Anytime. 😊",
+      "Happy to help! That's what rules are for. ✅",
+      "Of course! Feel free to ask anything else.",
+      "No problem at all! 🙌"
+    ]
+  },
+  // Meaning of life
+  {
+    pattern: /\b(meaning of life|answer to (life|everything)|42)\b/i,
+    tag: "PHILOSOPHY",
+    tagColor: "rgba(255,107,107,0.12)",
+    tagText: "rgba(255,107,107,0.8)",
+    responses: [
+      "42. Obviously. 🌌 (Thanks, Douglas Adams!)",
+      "The meaning of life? My rules say: **42**. Don't question the rules. 😄"
+    ]
+  },
+];
+
+// Fallback responses
+const fallbacks = [
+  "Hmm, I don't have a rule for that yet. Try asking me about the time, a joke, or some math!",
+  "That pattern doesn't match any of my rules. Ask me something like 'what time is it?' or 'tell me a joke'!",
+  "No matching rule found! I'm still learning. Try: hello, a joke, math, or the date.",
+  "My pattern matcher drew a blank. Can you rephrase, or try asking for a joke? 😄"
+];
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+window._userName = null;
+let msgCount = 0;
+
+// ─── Core logic ───────────────────────────────────────────────────────────────
+function getBotResponse(input) {
+  for (const rule of rules) {
+    const match = input.match(rule.pattern);
+    if (match) {
+      let text;
+      if (rule.dynamicResponse) {
+        text = rule.dynamicResponse(match);
+      } else {
+        text = rule.responses[Math.floor(Math.random() * rule.responses.length)];
+      }
+      return { text, tag: rule.tag, tagColor: rule.tagColor, tagText: rule.tagText };
+    }
+  }
+  return {
+    text: fallbacks[Math.floor(Math.random() * fallbacks.length)],
+    tag: "UNKNOWN",
+    tagColor: "rgba(90,90,122,0.2)",
+    tagText: "rgba(90,90,122,0.9)"
+  };
+}
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+function renderMsg(role, text, tag, tagColor, tagText) {
+  const win = document.getElementById('chat-window');
+
+  // Remove welcome on first real message
+  const w = document.getElementById('welcome-msg');
+  if (w) w.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = role === 'bot' ? 'AX' : 'ME';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  if (tag) {
+    const lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = role === 'bot' ? 'AXIOM' : 'YOU';
+    bubble.appendChild(lbl);
+
+    const badge = document.createElement('span');
+    badge.className = 'tag-badge';
+    badge.style.background = tagColor;
+    badge.style.color = tagText;
+    badge.textContent = tag;
+    bubble.appendChild(badge);
+    bubble.appendChild(document.createElement('br'));
+  }
+
+  // Parse bold **text**
+  const content = document.createElement('span');
+  content.innerHTML = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+  bubble.appendChild(content);
+
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function showTyping() {
+  const win = document.getElementById('chat-window');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typing-indicator';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = 'AX';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = '<div class="typing-bubble"><span></span><span></span><span></span></div>';
+
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ─── Send ─────────────────────────────────────────────────────────────────────
+function handleSend() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  renderMsg('user', text, null, null, null);
+  input.value = '';
+
+  showTyping();
+  // Simulate a tiny delay to feel more natural
+  setTimeout(() => {
+    hideTyping();
+    const { text: resp, tag, tagColor, tagText } = getBotResponse(text);
+    renderMsg('bot', resp, tag, tagColor, tagText);
+  }, 480 + Math.random() * 300);
+}
+
+function sendChip(el) {
+  const input = document.getElementById('user-input');
+  input.value = el.textContent;
+  handleSend();
+}
+
+// Enter key
+document.getElementById('user-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+
+// Boot greeting
+setTimeout(() => {
+  renderMsg('bot', "Hello! I'm **Axiom**, a rule-based chatbot. I respond using pattern matching — no AI, just logic. Try the suggestion chips below or type anything!", 'GREETING', 'rgba(0,255,163,0.15)', 'rgba(0,255,163,0.8)');
+}, 500);
+</script>
+</body>
+</html>

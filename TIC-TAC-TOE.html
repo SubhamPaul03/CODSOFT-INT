@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTT · AI ARENA</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --bg:#050a08;
+  --panel:#080f0a;
+  --border:#0d2a14;
+  --green:#00ff6a;
+  --green-dim:#00c04f;
+  --green-dark:#003d18;
+  --red:#ff3c5a;
+  --red-dim:#c0002f;
+  --amber:#ffb700;
+  --white:#d4fde4;
+  --muted:#2a5c38;
+  --font-mono:'Share Tech Mono',monospace;
+  --font-display:'Orbitron',monospace;
+}
+
+body{
+  background:var(--bg);
+  color:var(--green);
+  font-family:var(--font-mono);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  overflow:hidden;
+  cursor:crosshair;
+}
+
+/* CRT scanline overlay */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;
+  z-index:100;
+}
+/* phosphor glow vignette */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+  pointer-events:none;
+  z-index:99;
+}
+
+.shell{
+  position:relative;
+  z-index:1;
+  width:100%;
+  max-width:560px;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  border:1px solid var(--green-dim);
+  box-shadow:0 0 40px rgba(0,255,106,0.08), inset 0 0 60px rgba(0,255,106,0.02);
+  border-radius:4px;
+  animation:bootIn 0.6s ease both;
+}
+@keyframes bootIn{
+  from{opacity:0;transform:scale(0.97);}
+  to{opacity:1;transform:scale(1);}
+}
+
+/* ── Title bar ── */
+.titlebar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 16px;
+  background:var(--green-dark);
+  border-bottom:1px solid var(--green-dim);
+  user-select:none;
+}
+.titlebar-left{
+  font-family:var(--font-display);
+  font-size:0.65rem;
+  font-weight:700;
+  letter-spacing:0.2em;
+  color:var(--green);
+  text-shadow:0 0 12px var(--green);
+}
+.titlebar-right{
+  font-size:0.6rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+}
+.led{
+  display:inline-block;
+  width:7px;height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  margin-left:8px;
+  animation:ledBlink 2.4s ease-in-out infinite;
+}
+@keyframes ledBlink{0%,100%{opacity:1}50%{opacity:0.25}}
+
+/* ── Score bar ── */
+.scorebar{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  padding:10px 20px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  gap:8px;
+}
+.score-block{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+}
+.score-label{
+  font-size:0.58rem;
+  letter-spacing:0.15em;
+  color:var(--muted);
+  text-transform:uppercase;
+}
+.score-name{
+  font-family:var(--font-display);
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+}
+.score-name.player{color:var(--green);}
+.score-name.ai{color:var(--red);}
+.score-val{
+  font-family:var(--font-display);
+  font-size:1.6rem;
+  font-weight:900;
+  line-height:1;
+}
+.score-val.player{color:var(--green);text-shadow:0 0 16px var(--green);}
+.score-val.ai{color:var(--red);text-shadow:0 0 16px var(--red);}
+.score-sep{
+  font-family:var(--font-display);
+  font-size:0.7rem;
+  color:var(--muted);
+  text-align:center;
+}
+.draws-lbl{font-size:0.55rem;color:var(--muted);}
+.draws-val{font-size:0.9rem;color:var(--amber);font-family:var(--font-display);font-weight:700;}
+
+/* ── Status strip ── */
+.status-strip{
+  padding:8px 20px;
+  background:var(--green-dark);
+  border-bottom:1px solid var(--green-dim);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:36px;
+}
+.status-prefix{
+  font-size:0.65rem;
+  color:var(--muted);
+  flex-shrink:0;
+}
+#status-text{
+  font-size:0.7rem;
+  color:var(--green);
+  letter-spacing:0.06em;
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.cursor-blink{
+  display:inline-block;
+  width:8px;height:13px;
+  background:var(--green);
+  vertical-align:middle;
+  margin-left:3px;
+  animation:cursorBlink 1s step-end infinite;
+}
+@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Difficulty bar ── */
+.diffbar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 20px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  flex-wrap:wrap;
+}
+.diff-label{font-size:0.58rem;color:var(--muted);letter-spacing:0.1em;margin-right:4px;}
+.diff-btn{
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  padding:3px 10px;
+  background:transparent;
+  border:1px solid var(--muted);
+  color:var(--muted);
+  border-radius:2px;
+  cursor:pointer;
+  letter-spacing:0.08em;
+  transition:all 0.15s;
+  text-transform:uppercase;
+}
+.diff-btn:hover{border-color:var(--green);color:var(--green);}
+.diff-btn.active{
+  background:var(--green-dark);
+  border-color:var(--green);
+  color:var(--green);
+  text-shadow:0 0 8px var(--green);
+  box-shadow:0 0 8px rgba(0,255,106,0.15);
+}
+
+/* ── Board ── */
+.board-wrap{
+  padding:24px;
+  background:var(--panel);
+  display:flex;
+  justify-content:center;
+}
+.board{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:3px;
+  background:var(--green-dim);
+  border:2px solid var(--green-dim);
+  box-shadow:0 0 30px rgba(0,255,106,0.1);
+  border-radius:2px;
+  overflow:hidden;
+  width:min(320px, 80vw);
+  aspect-ratio:1;
+}
+.cell{
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  position:relative;
+  transition:background 0.15s;
+  overflow:hidden;
+}
+.cell::before{
+  content:'';
+  position:absolute;inset:0;
+  background:var(--green);
+  opacity:0;
+  transition:opacity 0.15s;
+}
+.cell:hover:not(.taken)::before{opacity:0.04;}
+.cell.taken{cursor:default;}
+
+/* X symbol */
+.sym-x{
+  position:relative;
+  width:52%;height:52%;
+  animation:popIn 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes popIn{
+  from{opacity:0;transform:scale(0.3) rotate(20deg);}
+  to{opacity:1;transform:scale(1) rotate(0deg);}
+}
+.sym-x::before,.sym-x::after{
+  content:'';
+  position:absolute;
+  top:50%;left:0;
+  width:100%;height:3px;
+  border-radius:2px;
+  background:var(--green);
+  box-shadow:0 0 10px var(--green), 0 0 24px rgba(0,255,106,0.4);
+  transform-origin:center;
+}
+.sym-x::before{transform:translateY(-50%) rotate(45deg);}
+.sym-x::after{transform:translateY(-50%) rotate(-45deg);}
+
+/* O symbol */
+.sym-o{
+  width:50%;height:50%;
+  border-radius:50%;
+  border:3px solid var(--red);
+  box-shadow:0 0 10px var(--red), 0 0 24px rgba(255,60,90,0.3), inset 0 0 8px rgba(255,60,90,0.1);
+  animation:popIn 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+/* winning highlight */
+.cell.win-cell{
+  background:rgba(0,255,106,0.06)!important;
+  animation:winPulse 0.8s ease infinite alternate;
+}
+.cell.win-cell .sym-x::before,
+.cell.win-cell .sym-x::after{
+  box-shadow:0 0 20px var(--green), 0 0 40px rgba(0,255,106,0.6);
+}
+.cell.win-cell .sym-o{
+  box-shadow:0 0 20px var(--red), 0 0 40px rgba(255,60,90,0.5), inset 0 0 12px rgba(255,60,90,0.2);
+}
+@keyframes winPulse{
+  from{background:rgba(0,255,106,0.03);}
+  to{background:rgba(0,255,106,0.1);}
+}
+
+/* ── Action bar ── */
+.actionbar{
+  display:flex;
+  gap:8px;
+  padding:14px 20px;
+  background:var(--panel);
+  border-top:1px solid var(--border);
+}
+.btn{
+  flex:1;
+  font-family:var(--font-mono);
+  font-size:0.68rem;
+  padding:10px 6px;
+  border-radius:2px;
+  border:1px solid;
+  cursor:pointer;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  transition:all 0.15s;
+  background:transparent;
+}
+.btn-primary{
+  border-color:var(--green-dim);
+  color:var(--green);
+}
+.btn-primary:hover{
+  background:var(--green-dark);
+  border-color:var(--green);
+  box-shadow:0 0 14px rgba(0,255,106,0.2);
+}
+.btn-secondary{
+  border-color:var(--border);
+  color:var(--muted);
+}
+.btn-secondary:hover{
+  border-color:var(--amber);
+  color:var(--amber);
+}
+
+/* ── AI thinking overlay ── */
+.thinking-bar{
+  position:absolute;
+  bottom:0;left:0;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--green), transparent);
+  width:0%;
+  transition:width 0.1s;
+  border-radius:0;
+}
+
+/* ── Log panel ── */
+.log-panel{
+  border-top:1px solid var(--border);
+  background:var(--bg);
+  padding:10px 20px;
+  max-height:90px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.log-panel::-webkit-scrollbar{width:3px;}
+.log-panel::-webkit-scrollbar-thumb{background:var(--muted);}
+.log-entry{
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.04em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  animation:logFade 0.2s ease;
+}
+@keyframes logFade{from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:none;}}
+.log-entry.hi{color:var(--green);}
+.log-entry.warn{color:var(--amber);}
+.log-entry.err{color:var(--red);}
+
+/* ── Footer ── */
+.footer{
+  padding:7px 20px;
+  border-top:1px solid var(--border);
+  background:var(--panel);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-radius:0 0 4px 4px;
+}
+.footer-left{font-size:0.55rem;color:var(--muted);}
+.footer-right{font-size:0.55rem;color:var(--muted);}
+#node-count{color:var(--amber);}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <span class="titlebar-left">TTT·AI ARENA<span class="led"></span></span>
+    <span class="titlebar-right">MINIMAX + α-β PRUNING</span>
+  </div>
+
+  <!-- Score bar -->
+  <div class="scorebar">
+    <div class="score-block">
+      <span class="score-label">PLAYER</span>
+      <span class="score-name player">[ X ]</span>
+      <span class="score-val player" id="score-player">0</span>
+    </div>
+    <div class="score-block">
+      <span class="score-sep">VS</span>
+      <span class="draws-lbl">DRAWS</span>
+      <span class="draws-val" id="score-draws">0</span>
+    </div>
+    <div class="score-block">
+      <span class="score-label">AI</span>
+      <span class="score-name ai">[ O ]</span>
+      <span class="score-val ai" id="score-ai">0</span>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-strip">
+    <span class="status-prefix">&gt;&gt;</span>
+    <span id="status-text">YOUR TURN — SELECT A CELL</span>
+    <span class="cursor-blink"></span>
+  </div>
+
+  <!-- Difficulty -->
+  <div class="diffbar">
+    <span class="diff-label">DIFF:</span>
+    <button class="diff-btn" data-diff="easy" onclick="setDiff('easy')">EASY</button>
+    <button class="diff-btn active" data-diff="medium" onclick="setDiff('medium')">MEDIUM</button>
+    <button class="diff-btn" data-diff="hard" onclick="setDiff('hard')">HARD (UNBEATABLE)</button>
+  </div>
+
+  <!-- Board -->
+  <div class="board-wrap" style="position:relative;">
+    <div class="board" id="board"></div>
+    <div class="thinking-bar" id="thinking-bar"></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actionbar">
+    <button class="btn btn-primary" onclick="newGame()">[ NEW GAME ]</button>
+    <button class="btn btn-secondary" onclick="toggleFirstMove()">[ SWAP FIRST ]</button>
+    <button class="btn btn-secondary" onclick="resetScores()">[ RESET SCORES ]</button>
+  </div>
+
+  <!-- Log -->
+  <div class="log-panel" id="log-panel"></div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-left">ALGORITHM: MINIMAX + ALPHA-BETA PRUNING</span>
+    <span class="footer-right">NODES SEARCHED: <span id="node-count">0</span></span>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//   GAME STATE
+// ═══════════════════════════════════════════════════════════
+const EMPTY = null, PLAYER = 'X', AI = 'O';
+const WIN_LINES = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+let board, gameActive, playerFirst, difficulty, nodeCount;
+let scores = {player:0, ai:0, draws:0};
+let aiDelay = {easy:600, medium:420, hard:280};
+
+playerFirst = true;
+difficulty = 'medium';
+
+// ═══════════════════════════════════════════════════════════
+//   MINIMAX + ALPHA-BETA PRUNING
+// ═══════════════════════════════════════════════════════════
+function checkWinner(b) {
+  for (const [a,c,d] of WIN_LINES) {
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) return {winner: b[a], line: [a,c,d]};
+  }
+  if (b.every(c => c !== EMPTY)) return {winner: 'draw', line: []};
+  return null;
+}
+
+function minimax(b, depth, isMax, alpha, beta) {
+  nodeCount++;
+  const result = checkWinner(b);
+  if (result) {
+    if (result.winner === AI)     return 10 - depth;
+    if (result.winner === PLAYER) return depth - 10;
+    return 0; // draw
+  }
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === EMPTY) {
+        b[i] = AI;
+        best = Math.max(best, minimax(b, depth+1, false, alpha, beta));
+        b[i] = EMPTY;
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break; // α-β prune
+      }
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === EMPTY) {
+        b[i] = PLAYER;
+        best = Math.min(best, minimax(b, depth+1, true, alpha, beta));
+        b[i] = EMPTY;
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break; // α-β prune
+      }
+    }
+    return best;
+  }
+}
+
+function getBestMove(b) {
+  nodeCount = 0;
+  let bestScore = -Infinity, bestMove = -1;
+  for (let i = 0; i < 9; i++) {
+    if (b[i] === EMPTY) {
+      b[i] = AI;
+      const score = minimax(b, 0, false, -Infinity, Infinity);
+      b[i] = EMPTY;
+      if (score > bestScore) { bestScore = score; bestMove = i; }
+    }
+  }
+  return bestMove;
+}
+
+function getEasyMove(b) {
+  // Random 60% of time, otherwise best
+  if (Math.random() < 0.6) {
+    const empties = b.map((v,i)=>v===EMPTY?i:-1).filter(i=>i>=0);
+    return empties[Math.floor(Math.random()*empties.length)];
+  }
+  return getBestMove(b);
+}
+
+function getMediumMove(b) {
+  // Block immediate wins, take wins, else random
+  // Check if AI can win
+  for (let i = 0; i < 9; i++) {
+    if (b[i] === EMPTY) {
+      b[i] = AI;
+      if (checkWinner(b)?.winner === AI) { b[i] = EMPTY; return i; }
+      b[i] = EMPTY;
+    }
+  }
+  // Block player win
+  for (let i = 0; i < 9; i++) {
+    if (b[i] === EMPTY) {
+      b[i] = PLAYER;
+      if (checkWinner(b)?.winner === PLAYER) { b[i] = EMPTY; return i; }
+      b[i] = EMPTY;
+    }
+  }
+  // Take center
+  if (b[4] === EMPTY) return 4;
+  // Random corner
+  const corners = [0,2,6,8].filter(i=>b[i]===EMPTY);
+  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
+  // Any empty
+  const empties = b.map((v,i)=>v===EMPTY?i:-1).filter(i=>i>=0);
+  return empties[Math.floor(Math.random()*empties.length)];
+}
+
+// ═══════════════════════════════════════════════════════════
+//   RENDERING
+// ═══════════════════════════════════════════════════════════
+function renderBoard(winLine=[]) {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  board.forEach((val, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (val?' taken':'') + (winLine.includes(idx)?' win-cell':'');
+    cell.dataset.idx = idx;
+    if (val === PLAYER) {
+      const sym = document.createElement('div');
+      sym.className = 'sym-x';
+      cell.appendChild(sym);
+    } else if (val === AI) {
+      const sym = document.createElement('div');
+      sym.className = 'sym-o';
+      cell.appendChild(sym);
+    }
+    if (!val && gameActive) cell.onclick = () => playerMove(idx);
+    el.appendChild(cell);
+  });
+}
+
+function setStatus(msg) {
+  document.getElementById('status-text').textContent = msg;
+}
+
+function updateScores() {
+  document.getElementById('score-player').textContent = scores.player;
+  document.getElementById('score-ai').textContent = scores.ai;
+  document.getElementById('score-draws').textContent = scores.draws;
+}
+
+function log(msg, cls='') {
+  const panel = document.getElementById('log-panel');
+  const ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + cls;
+  entry.textContent = `[${ts}] ${msg}`;
+  panel.prepend(entry);
+  while (panel.children.length > 20) panel.removeChild(panel.lastChild);
+}
+
+function updateNodeCount() {
+  document.getElementById('node-count').textContent = nodeCount.toLocaleString();
+}
+
+function thinkingAnim(active) {
+  const bar = document.getElementById('thinking-bar');
+  if (active) {
+    bar.style.width = '100%';
+    bar.style.transition = 'width 0.4s ease';
+  } else {
+    bar.style.width = '0%';
+    bar.style.transition = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   GAME LOGIC
+// ═══════════════════════════════════════════════════════════
+function newGame() {
+  board = Array(9).fill(EMPTY);
+  gameActive = true;
+  nodeCount = 0;
+  renderBoard();
+  document.getElementById('node-count').textContent = '0';
+
+  if (playerFirst) {
+    setStatus('YOUR TURN — PLACE X');
+    log('New game started. Player goes first.', 'hi');
+  } else {
+    setStatus('AI CALCULATING...');
+    log('New game started. AI goes first.', 'hi');
+    thinkingAnim(true);
+    setTimeout(() => { aiTurn(); }, 500);
+  }
+}
+
+function playerMove(idx) {
+  if (!gameActive || board[idx] !== EMPTY) return;
+  board[idx] = PLAYER;
+  log(`Player placed X on cell ${idx+1}`);
+  const result = checkWinner(board);
+  if (result) { endGame(result); return; }
+  setStatus('AI CALCULATING...');
+  gameActive = false; // prevent clicks during AI turn
+  thinkingAnim(true);
+  setTimeout(aiTurn, aiDelay[difficulty]);
+}
+
+function aiTurn() {
+  let move;
+  if (difficulty === 'easy')        move = getEasyMove(board);
+  else if (difficulty === 'medium') move = getMediumMove(board);
+  else                              move = getBestMove(board);
+
+  thinkingAnim(false);
+  board[move] = AI;
+  log(`AI placed O on cell ${move+1} · nodes searched: ${nodeCount.toLocaleString()}`, 'warn');
+  updateNodeCount();
+
+  const result = checkWinner(board);
+  gameActive = true;
+  if (result) { endGame(result); return; }
+  setStatus('YOUR TURN — PLACE X');
+  renderBoard();
+}
+
+function endGame(result) {
+  gameActive = false;
+  renderBoard(result.line);
+  if (result.winner === PLAYER) {
+    scores.player++;
+    setStatus('🏆 YOU WIN! IMPRESSIVE.');
+    log('PLAYER WINS!', 'hi');
+  } else if (result.winner === AI) {
+    scores.ai++;
+    setStatus('💀 AI WINS. BETTER LUCK NEXT TIME.');
+    log('AI WINS.', 'err');
+  } else {
+    scores.draws++;
+    setStatus('🤝 DRAW — WELL PLAYED.');
+    log('DRAW.', '');
+  }
+  updateScores();
+  setTimeout(newGame, 2200);
+}
+
+function setDiff(d) {
+  difficulty = d;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('active', b.dataset.diff === d));
+  const names = {easy:'EASY MODE — AI makes random moves', medium:'MEDIUM MODE — AI uses heuristics', hard:'HARD MODE — UNBEATABLE (full minimax + α-β pruning)'};
+  log(names[d], 'warn');
+  newGame();
+}
+
+function toggleFirstMove() {
+  playerFirst = !playerFirst;
+  log(`First move swapped. ${playerFirst?'Player':'AI'} goes first.`, 'warn');
+  newGame();
+}
+
+function resetScores() {
+  scores = {player:0, ai:0, draws:0};
+  updateScores();
+  log('Scores reset.', '');
+}
+
+// ═══════════════════════════════════════════════════════════
+//   BOOT
+// ═══════════════════════════════════════════════════════════
+log('SYSTEM BOOT — TTT·AI ARENA v1.0', 'hi');
+log('Algorithm: Minimax + Alpha-Beta Pruning', 'hi');
+log('Player = X  |  AI = O', '');
+updateScores();
+newGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CINE·LENS — Film Recommendation Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --ink:#0e0e0e;
+  --paper:#f5f0e8;
+  --cream:#ede8dc;
+  --warm:#e8e0cc;
+  --accent:#c8371a;
+  --accent2:#1a4f8c;
+  --gold:#b8860b;
+  --muted:#7a7060;
+  --border:#d0c8b4;
+  --card:#faf7f0;
+  --font-serif:'DM Serif Display',serif;
+  --font-mono:'DM Mono',monospace;
+  --font-body:'Manrope',sans-serif;
+}
+
+html{scroll-behavior:smooth;}
+
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  min-height:100vh;
+  position:relative;
+}
+
+/* grain texture */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:1000;
+  opacity:0.6;
+}
+
+/* ── MASTHEAD ── */
+.masthead{
+  border-bottom:3px solid var(--ink);
+  padding:0 40px;
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  background:var(--paper);
+  position:sticky;
+  top:0;
+  z-index:50;
+}
+.masthead-title{
+  flex:1;
+  padding:18px 0;
+  border-right:2px solid var(--ink);
+}
+.masthead-title h1{
+  font-family:var(--font-serif);
+  font-size:clamp(1.6rem,4vw,2.4rem);
+  letter-spacing:-0.01em;
+  line-height:1;
+  color:var(--ink);
+}
+.masthead-title h1 span{color:var(--accent);}
+.masthead-sub{
+  font-family:var(--font-mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-top:4px;
+}
+.masthead-meta{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:0 24px;
+  gap:4px;
+}
+.meta-pill{
+  font-family:var(--font-mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.algo-badge{
+  background:var(--ink);
+  color:var(--paper);
+  padding:1px 6px;
+  border-radius:2px;
+  font-size:0.55rem;
+  letter-spacing:0.08em;
+}
+
+/* ── LAYOUT ── */
+.layout{
+  display:grid;
+  grid-template-columns:320px 1fr;
+  min-height:calc(100vh - 72px);
+  gap:0;
+}
+
+/* ── LEFT PANEL ── */
+.left-panel{
+  border-right:2px solid var(--ink);
+  display:flex;
+  flex-direction:column;
+  background:var(--cream);
+}
+
+.panel-section{
+  border-bottom:1px solid var(--border);
+  padding:20px 24px;
+}
+.panel-section:last-child{border-bottom:none;}
+
+.section-kicker{
+  font-family:var(--font-mono);
+  font-size:0.58rem;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.section-kicker::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:var(--border);
+}
+
+.section-title{
+  font-family:var(--font-serif);
+  font-size:1.2rem;
+  margin-bottom:14px;
+  color:var(--ink);
+}
+
+/* User selector */
+.user-cards{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.user-card{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 12px;
+  border-radius:4px;
+  border:1.5px solid transparent;
+  cursor:pointer;
+  transition:all 0.15s;
+  background:var(--card);
+}
+.user-card:hover{border-color:var(--border);background:var(--paper);}
+.user-card.active{
+  border-color:var(--ink);
+  background:var(--ink);
+  color:var(--paper);
+}
+.user-avatar{
+  width:32px;height:32px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;
+  flex-shrink:0;
+  background:var(--warm);
+  border:1.5px solid var(--border);
+}
+.user-card.active .user-avatar{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);}
+.user-info{flex:1;}
+.user-name{font-weight:600;font-size:0.82rem;}
+.user-desc{font-size:0.65rem;color:var(--muted);margin-top:1px;}
+.user-card.active .user-desc{color:rgba(255,255,255,0.5);}
+
+/* Genre tags */
+.genre-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.genre-tag{
+  font-family:var(--font-mono);
+  font-size:0.62rem;
+  padding:4px 10px;
+  border-radius:2px;
+  border:1px solid var(--border);
+  background:var(--paper);
+  color:var(--muted);
+  cursor:pointer;
+  transition:all 0.15s;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  user-select:none;
+}
+.genre-tag:hover{border-color:var(--ink);color:var(--ink);}
+.genre-tag.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:white;
+}
+
+/* Rating history */
+.rating-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:220px;
+  overflow-y:auto;
+}
+.rating-list::-webkit-scrollbar{width:3px;}
+.rating-list::-webkit-scrollbar-thumb{background:var(--border);}
+.rating-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:0.75rem;
+}
+.rating-item-title{
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--ink);
+}
+.stars{
+  color:var(--gold);
+  font-size:0.65rem;
+  letter-spacing:1px;
+  flex-shrink:0;
+}
+.no-ratings{
+  font-size:0.75rem;
+  color:var(--muted);
+  font-style:italic;
+}
+
+/* Algorithm selector */
+.algo-btns{
+  display:flex;
+  gap:6px;
+}
+.algo-btn{
+  flex:1;
+  padding:8px 6px;
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  border:1.5px solid var(--border);
+  background:var(--paper);
+  color:var(--muted);
+  cursor:pointer;
+  transition:all 0.15s;
+  border-radius:3px;
+  text-align:center;
+  line-height:1.4;
+}
+.algo-btn:hover{border-color:var(--ink);color:var(--ink);}
+.algo-btn.active{
+  background:var(--accent2);
+  border-color:var(--accent2);
+  color:white;
+}
+
+/* Similarity meter */
+.sim-bar-wrap{
+  margin-top:8px;
+}
+.sim-user{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+.sim-name{font-size:0.72rem;font-weight:500;width:70px;flex-shrink:0;}
+.sim-bar-bg{
+  flex:1;
+  height:6px;
+  background:var(--warm);
+  border-radius:3px;
+  overflow:hidden;
+}
+.sim-bar-fill{
+  height:100%;
+  border-radius:3px;
+  background:var(--accent2);
+  transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+.sim-pct{
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  color:var(--muted);
+  width:34px;
+  text-align:right;
+  flex-shrink:0;
+}
+
+/* ── RIGHT PANEL ── */
+.right-panel{
+  padding:32px 40px;
+  background:var(--paper);
+  overflow-y:auto;
+}
+
+.results-header{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:8px;
+  border-bottom:2px solid var(--ink);
+  padding-bottom:10px;
+}
+.results-title{
+  font-family:var(--font-serif);
+  font-size:clamp(1.4rem,3vw,2rem);
+  font-style:italic;
+}
+.results-count{
+  font-family:var(--font-mono);
+  font-size:0.65rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+}
+
+.algo-explain{
+  font-size:0.75rem;
+  color:var(--muted);
+  margin-bottom:24px;
+  padding:10px 14px;
+  border-left:3px solid var(--accent2);
+  background:rgba(26,79,140,0.04);
+  line-height:1.6;
+}
+.algo-explain strong{color:var(--accent2);}
+
+/* Movie grid */
+.movie-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:20px;
+  margin-bottom:40px;
+}
+
+.movie-card{
+  background:var(--card);
+  border:1.5px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+  animation:cardFade 0.35s ease both;
+}
+.movie-card:hover{
+  border-color:var(--ink);
+  transform:translateY(-3px);
+  box-shadow:4px 6px 0 var(--ink);
+}
+@keyframes cardFade{
+  from{opacity:0;transform:translateY(12px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.movie-poster{
+  width:100%;
+  aspect-ratio:2/3;
+  background:var(--warm);
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:6px;
+}
+.movie-poster-emoji{font-size:2.8rem;line-height:1;}
+.movie-poster-year{
+  font-family:var(--font-mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.1em;
+}
+.poster-score-badge{
+  position:absolute;
+  top:8px;right:8px;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--font-mono);
+  font-size:0.62rem;
+  font-weight:500;
+  padding:3px 7px;
+  border-radius:2px;
+  letter-spacing:0.04em;
+}
+.poster-genre-badge{
+  position:absolute;
+  bottom:8px;left:8px;
+  background:var(--accent);
+  color:white;
+  font-family:var(--font-mono);
+  font-size:0.54rem;
+  padding:2px 6px;
+  border-radius:2px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+
+.movie-info{padding:12px 14px 14px;}
+.movie-title{
+  font-family:var(--font-serif);
+  font-size:1rem;
+  line-height:1.25;
+  margin-bottom:4px;
+}
+.movie-meta{
+  font-family:var(--font-mono);
+  font-size:0.58rem;
+  color:var(--muted);
+  letter-spacing:0.06em;
+  margin-bottom:8px;
+}
+.movie-desc{
+  font-size:0.72rem;
+  color:var(--muted);
+  line-height:1.5;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.movie-score-bar{
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.score-bar-bg{
+  flex:1;height:4px;
+  background:var(--warm);
+  border-radius:2px;overflow:hidden;
+}
+.score-bar-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--accent2),var(--accent));
+  transition:width 0.6s ease;
+}
+.score-label-text{
+  font-family:var(--font-mono);
+  font-size:0.58rem;color:var(--muted);
+  flex-shrink:0;
+}
+
+/* Rate modal */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(14,14,14,0.6);
+  backdrop-filter:blur(4px);
+  z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  animation:overlayIn 0.2s ease;
+}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+.modal-overlay.hidden{display:none;}
+.modal{
+  background:var(--paper);
+  border:2px solid var(--ink);
+  border-radius:4px;
+  padding:32px;
+  max-width:400px;
+  width:100%;
+  box-shadow:8px 8px 0 var(--ink);
+  animation:modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalIn{from{opacity:0;transform:scale(0.92) translateY(20px);}to{opacity:1;transform:none;}}
+.modal-kicker{
+  font-family:var(--font-mono);
+  font-size:0.6rem;letter-spacing:0.15em;
+  text-transform:uppercase;color:var(--muted);
+  margin-bottom:8px;
+}
+.modal-title{
+  font-family:var(--font-serif);
+  font-size:1.5rem;margin-bottom:4px;
+}
+.modal-meta{font-family:var(--font-mono);font-size:0.62rem;color:var(--muted);margin-bottom:20px;}
+.modal-desc{font-size:0.82rem;line-height:1.6;color:var(--muted);margin-bottom:22px;}
+.modal-rate-label{
+  font-family:var(--font-mono);font-size:0.65rem;
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;
+}
+.star-picker{
+  display:flex;gap:6px;margin-bottom:20px;
+}
+.star-btn{
+  font-size:1.6rem;cursor:pointer;
+  transition:transform 0.1s;
+  opacity:0.3;
+  background:none;border:none;
+  padding:0;line-height:1;
+}
+.star-btn:hover,.star-btn.on{opacity:1;}
+.star-btn:hover{transform:scale(1.2);}
+.modal-actions{display:flex;gap:10px;}
+.modal-btn{
+  flex:1;padding:10px;
+  font-family:var(--font-mono);
+  font-size:0.68rem;letter-spacing:0.08em;
+  text-transform:uppercase;
+  border-radius:3px;cursor:pointer;
+  transition:all 0.15s;
+  border:1.5px solid;
+}
+.modal-btn-primary{
+  background:var(--ink);border-color:var(--ink);color:var(--paper);
+}
+.modal-btn-primary:hover{background:#333;}
+.modal-btn-secondary{
+  background:transparent;border-color:var(--border);color:var(--muted);
+}
+.modal-btn-secondary:hover{border-color:var(--ink);color:var(--ink);}
+
+/* already-rated overlay on card */
+.rated-ribbon{
+  position:absolute;
+  top:0;left:0;right:0;
+  background:rgba(14,14,14,0.75);
+  color:var(--paper);
+  font-family:var(--font-mono);
+  font-size:0.6rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  padding:5px;
+  text-align:center;
+}
+
+@media(max-width:680px){
+  .layout{grid-template-columns:1fr;}
+  .left-panel{border-right:none;border-bottom:2px solid var(--ink);}
+  .masthead{padding:0 16px;}
+  .right-panel{padding:20px 16px;}
+  .movie-grid{grid-template-columns:repeat(2,1fr);gap:12px;}
+}
+</style>
+</head>
+<body>
+
+<!-- Masthead -->
+<div class="masthead">
+  <div class="masthead-title">
+    <h1>CINE<span>·</span>LENS</h1>
+    <div class="masthead-sub">Personalised Film Recommendation Engine</div>
+  </div>
+  <div class="masthead-meta">
+    <div class="meta-pill"><span class="algo-badge" id="active-algo-badge">COLLAB</span> Algorithm Active</div>
+    <div class="meta-pill">20 films · 5 users · real-time scoring</div>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <!-- User selector -->
+    <div class="panel-section">
+      <div class="section-kicker">Viewer Profile</div>
+      <div class="user-cards" id="user-cards"></div>
+    </div>
+
+    <!-- Algorithm -->
+    <div class="panel-section">
+      <div class="section-kicker">Algorithm</div>
+      <div class="algo-btns">
+        <button class="algo-btn active" data-algo="collab" onclick="setAlgo('collab')">Collaborative<br>Filtering</button>
+        <button class="algo-btn" data-algo="content" onclick="setAlgo('content')">Content-Based<br>Filtering</button>
+        <button class="algo-btn" data-algo="hybrid" onclick="setAlgo('hybrid')">Hybrid<br>Blend</button>
+      </div>
+    </div>
+
+    <!-- Genre filter -->
+    <div class="panel-section">
+      <div class="section-kicker">Genre Filter</div>
+      <div class="genre-grid" id="genre-grid"></div>
+    </div>
+
+    <!-- Similar users (collab) -->
+    <div class="panel-section" id="sim-section">
+      <div class="section-kicker">User Similarity</div>
+      <div class="sim-bar-wrap" id="sim-bars"></div>
+    </div>
+
+    <!-- Rating history -->
+    <div class="panel-section">
+      <div class="section-kicker">Your Ratings</div>
+      <div class="rating-list" id="rating-list"></div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="results-header">
+      <h2 class="results-title" id="results-title">Recommended for You</h2>
+      <span class="results-count" id="results-count">— films</span>
+    </div>
+    <div class="algo-explain" id="algo-explain"></div>
+    <div class="movie-grid" id="movie-grid"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-kicker">Rate this film</div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-desc" id="modal-desc"></div>
+    <div class="modal-rate-label">Your rating</div>
+    <div class="star-picker" id="star-picker">
+      <button class="star-btn" data-v="1">★</button>
+      <button class="star-btn" data-v="2">★</button>
+      <button class="star-btn" data-v="3">★</button>
+      <button class="star-btn" data-v="4">★</button>
+      <button class="star-btn" data-v="5">★</button>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-primary" onclick="submitRating()">Save Rating</button>
+      <button class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════
+const MOVIES = [
+  {id:1,  title:"The Grand Illusion",     year:1937, genre:["Drama","War"],       tags:["classic","french","humanist"],              emoji:"🎭", desc:"A WWI drama exploring class and humanity through a prisoner of war story."},
+  {id:2,  title:"Blade Runner 2049",      year:2017, genre:["Sci-Fi","Thriller"], tags:["dystopian","visually stunning","AI","slow"], emoji:"🌆", desc:"A replicant hunter uncovers a secret that could plunge society into chaos."},
+  {id:3,  title:"Parasite",              year:2019, genre:["Thriller","Drama"],   tags:["class","korean","twist","dark comedy"],      emoji:"🏠", desc:"A poor family scheme their way into the lives of a wealthy household."},
+  {id:4,  title:"2001: A Space Odyssey", year:1968, genre:["Sci-Fi"],             tags:["AI","philosophical","kubrick","slow"],        emoji:"🚀", desc:"An expedition to Jupiter spirals as HAL 9000 develops sinister intent."},
+  {id:5,  title:"Amélie",               year:2001, genre:["Romance","Comedy"],   tags:["french","whimsical","warm","quirky"],         emoji:"🗼", desc:"A shy Parisian girl orchestrates the happiness of those around her."},
+  {id:6,  title:"Mad Max: Fury Road",    year:2015, genre:["Action","Sci-Fi"],    tags:["dystopian","fast","visual spectacle"],        emoji:"🔥", desc:"A rebellious woman leads a band of prisoners across a post-apocalyptic desert."},
+  {id:7,  title:"Portrait of a Lady on Fire",year:2019,genre:["Romance","Drama"],tags:["french","feminist","slow burn","art"],       emoji:"🎨", desc:"An artist and her subject fall in love in 18th century France."},
+  {id:8,  title:"Inception",             year:2010, genre:["Sci-Fi","Thriller"],  tags:["mind-bending","heist","dreams","nolan"],     emoji:"🌀", desc:"A thief who enters dreams is given a chance to have his past erased."},
+  {id:9,  title:"Spirited Away",         year:2001, genre:["Animation","Fantasy"],tags:["miyazaki","japanese","magical","family"],    emoji:"🐉", desc:"A girl finds herself in a spirit world while her parents are transformed."},
+  {id:10, title:"No Country for Old Men",year:2007, genre:["Thriller","Western"], tags:["coen","dark","violent","cat and mouse"],     emoji:"🤠", desc:"A hunter stumbles on a drug deal gone wrong and a relentless killer follows."},
+  {id:11, title:"The Lighthouse",        year:2019, genre:["Horror","Drama"],     tags:["psychological","isolation","black and white","eerie"],emoji:"🏚️",desc:"Two lighthouse keepers descend into madness on a remote New England island."},
+  {id:12, title:"Mulholland Drive",      year:2001, genre:["Thriller","Mystery"], tags:["surreal","lynch","dream logic","LA"],        emoji:"🌙", desc:"An aspiring actress and an amnesiac uncover a dark conspiracy in Hollywood."},
+  {id:13, title:"Everything Everywhere All at Once",year:2022,genre:["Sci-Fi","Comedy","Action"],tags:["multiverse","absurd","emotional","indie"],emoji:"🥢",desc:"A laundromat owner must save existence by connecting with parallel lives."},
+  {id:14, title:"Oldboy",                year:2003, genre:["Thriller","Mystery"], tags:["korean","revenge","twist","dark"],           emoji:"🐙", desc:"A man imprisoned for 15 years is inexplicably released and seeks answers."},
+  {id:15, title:"Moonlight",             year:2016, genre:["Drama"],              tags:["identity","coming of age","intimate","beautiful"],emoji:"🌊",desc:"A young man's journey of self-discovery through three chapters of his life."},
+  {id:16, title:"The Matrix",            year:1999, genre:["Sci-Fi","Action"],    tags:["AI","simulation","action","iconic"],         emoji:"💊", desc:"A hacker learns the world is a simulation and joins a rebellion."},
+  {id:17, title:"Her",                   year:2013, genre:["Sci-Fi","Romance"],   tags:["AI","lonely","futuristic","intimate"],       emoji:"📱", desc:"A writer falls in love with an AI operating system in near-future LA."},
+  {id:18, title:"Pan's Labyrinth",       year:2006, genre:["Fantasy","Drama"],    tags:["dark fantasy","war","fairy tale","del toro"],emoji:"🦋",desc:"A girl in post-war Spain escapes into a dangerous fairy-tale underworld."},
+  {id:19, title:"Aftersun",             year:2022, genre:["Drama"],              tags:["memory","intimate","slow burn","melancholy"],emoji:"☀️",desc:"A woman revisits her childhood holiday with her father through old footage."},
+  {id:20, title:"Drive",                 year:2011, genre:["Thriller","Action"],  tags:["neon","cool","slow burn","LA","violent"],    emoji:"🚗",desc:"A quiet Hollywood stuntman moonlights as a getaway driver for heists."},
+];
+
+const GENRES = [...new Set(MOVIES.flatMap(m=>m.genre))].sort();
+
+const USERS = [
+  {id:'alice',  name:'Alice',  emoji:'👩‍💼', desc:'Arthouse & thriller fan',
+   ratings:{1:5,2:4,3:5,8:3,10:4,11:5,12:5,14:4,15:5,19:5}},
+  {id:'ben',    name:'Ben',    emoji:'👨‍🔬', desc:'Sci-fi & action lover',
+   ratings:{2:5,4:5,6:4,8:5,9:3,13:4,16:5,17:4}},
+  {id:'carmen', name:'Carmen', emoji:'👩‍🎨', desc:'Romance & drama devotee',
+   ratings:{1:4,5:5,7:5,9:5,15:4,18:4,19:4}},
+  {id:'dan',    name:'Dan',    emoji:'🧑‍💻', desc:'Mind-bending films only',
+   ratings:{2:4,3:5,4:4,8:5,10:3,12:4,13:5,14:5,16:4}},
+  {id:'eve',    name:'Eve',    emoji:'👩‍🎬', desc:'World cinema enthusiast',
+   ratings:{1:5,3:5,5:4,7:4,9:5,14:4,15:4,18:5,19:3}},
+];
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let currentUser = 'alice';
+let algo = 'collab';
+let activeGenres = new Set();
+let pendingMovie = null;
+let pendingRating = 0;
+
+function getUser(id){ return USERS.find(u=>u.id===id); }
+function getCurrentUser(){ return getUser(currentUser); }
+
+// ═══════════════════════════════════════════════════════════
+//  ALGORITHMS
+// ═══════════════════════════════════════════════════════════
+
+// Cosine similarity between two rating objects
+function cosineSim(ratA, ratB){
+  const keys = [...new Set([...Object.keys(ratA),...Object.keys(ratB)])].map(Number);
+  let dot=0, normA=0, normB=0;
+  keys.forEach(k=>{
+    const a=ratA[k]||0, b=ratB[k]||0;
+    dot+=a*b; normA+=a*a; normB+=b*b;
+  });
+  if(!normA||!normB) return 0;
+  return dot/(Math.sqrt(normA)*Math.sqrt(normB));
+}
+
+// Pearson similarity
+function pearsonSim(ratA, ratB){
+  const shared = Object.keys(ratA).filter(k=>ratB[k]!==undefined).map(Number);
+  if(shared.length<2) return 0;
+  const avgA = shared.reduce((s,k)=>s+ratA[k],0)/shared.length;
+  const avgB = shared.reduce((s,k)=>s+ratB[k],0)/shared.length;
+  let num=0,denA=0,denB=0;
+  shared.forEach(k=>{
+    const da=ratA[k]-avgA, db=ratB[k]-avgB;
+    num+=da*db; denA+=da*da; denB+=db*db;
+  });
+  if(!denA||!denB) return 0;
+  return num/(Math.sqrt(denA)*Math.sqrt(denB));
+}
+
+// COLLABORATIVE FILTERING — weighted average of similar users' ratings
+function collaborativeScores(){
+  const user = getCurrentUser();
+  const otherUsers = USERS.filter(u=>u.id!==currentUser);
+  
+  // Compute similarity with each other user
+  const sims = otherUsers.map(u=>({
+    user: u,
+    sim: pearsonSim(user.ratings, u.ratings)
+  })).filter(x=>x.sim>0);
+
+  const scores = {};
+  MOVIES.forEach(m=>{
+    if(user.ratings[m.id]) return; // already rated
+    let num=0, den=0;
+    sims.forEach(({user:u, sim})=>{
+      if(u.ratings[m.id]){
+        num += sim * u.ratings[m.id];
+        den += Math.abs(sim);
+      }
+    });
+    if(den>0) scores[m.id] = num/den;
+  });
+  return {scores, sims};
+}
+
+// CONTENT-BASED FILTERING — tag + genre similarity to user profile
+function contentScores(){
+  const user = getCurrentUser();
+  
+  // Build user profile: weighted tag/genre frequencies from ratings
+  const tagWeights={}, genreWeights={};
+  Object.entries(user.ratings).forEach(([id,rating])=>{
+    const m = MOVIES.find(x=>x.id===+id);
+    if(!m) return;
+    m.tags.forEach(t=>{ tagWeights[t]=(tagWeights[t]||0)+rating; });
+    m.genre.forEach(g=>{ genreWeights[g]=(genreWeights[g]||0)+rating; });
+  });
+
+  const scores={};
+  MOVIES.forEach(m=>{
+    if(user.ratings[m.id]) return;
+    let s=0;
+    m.tags.forEach(t=>{ if(tagWeights[t]) s+=tagWeights[t]; });
+    m.genre.forEach(g=>{ if(genreWeights[g]) s+=genreWeights[g]*1.5; });
+    scores[m.id]=s;
+  });
+  return {scores};
+}
+
+// HYBRID — normalised blend of both
+function hybridScores(){
+  const {scores:cs} = collaborativeScores();
+  const {scores:cb} = contentScores();
+  
+  const normalize = obj=>{
+    const vals = Object.values(obj);
+    const max = Math.max(...vals)||1;
+    const result={};
+    Object.entries(obj).forEach(([k,v])=>result[k]=v/max);
+    return result;
+  };
+  const nc=normalize(cs), nb=normalize(cb);
+  const scores={};
+  MOVIES.forEach(m=>{
+    const a=nc[m.id]||0, b=nb[m.id]||0;
+    scores[m.id]=(a*0.55)+(b*0.45);
+  });
+  return {scores};
+}
+
+function getRecommendations(){
+  let result;
+  if(algo==='collab')   result = collaborativeScores();
+  else if(algo==='content') result = contentScores();
+  else                       result = hybridScores();
+  
+  const {scores, sims} = result;
+  
+  // Sort movies by score (only unrated)
+  const user = getCurrentUser();
+  let recs = MOVIES
+    .filter(m=>!user.ratings[m.id])
+    .map(m=>({...m, score: scores[m.id]||0}))
+    .sort((a,b)=>b.score-a.score);
+  
+  // Genre filter
+  if(activeGenres.size>0){
+    recs = recs.filter(m=>m.genre.some(g=>activeGenres.has(g)));
+  }
+
+  return {recs, sims: sims||[]};
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+function renderUsers(){
+  const el = document.getElementById('user-cards');
+  el.innerHTML = USERS.map(u=>`
+    <div class="user-card${u.id===currentUser?' active':''}" onclick="selectUser('${u.id}')">
+      <div class="user-avatar">${u.emoji}</div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-desc">${u.desc}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderGenres(){
+  const el = document.getElementById('genre-grid');
+  el.innerHTML = GENRES.map(g=>`
+    <div class="genre-tag${activeGenres.has(g)?' active':''}" onclick="toggleGenre('${g}')">${g}</div>
+  `).join('');
+}
+
+function renderRatings(){
+  const user = getCurrentUser();
+  const el = document.getElementById('rating-list');
+  const rated = Object.entries(user.ratings)
+    .map(([id,r])=>({movie:MOVIES.find(m=>m.id===+id), rating:r}))
+    .filter(x=>x.movie)
+    .sort((a,b)=>b.rating-a.rating);
+  if(!rated.length){
+    el.innerHTML='<div class="no-ratings">No ratings yet — click a film to rate it</div>';
+    return;
+  }
+  el.innerHTML = rated.map(({movie,rating})=>`
+    <div class="rating-item">
+      <span style="font-size:1rem">${movie.emoji}</span>
+      <span class="rating-item-title">${movie.title}</span>
+      <span class="stars">${'★'.repeat(rating)}${'☆'.repeat(5-rating)}</span>
+    </div>
+  `).join('');
+}
+
+function renderSimilarity(sims){
+  const section = document.getElementById('sim-section');
+  const el = document.getElementById('sim-bars');
+  if(algo==='content'){ section.style.display='none'; return; }
+  section.style.display='block';
+
+  if(!sims||!sims.length){
+    el.innerHTML='<div class="no-ratings" style="font-size:0.72rem">Rate more films to find similar viewers</div>';
+    return;
+  }
+  const sorted = [...sims].sort((a,b)=>b.sim-a.sim).slice(0,4);
+  const max = sorted[0]?.sim||1;
+  el.innerHTML = sorted.map(({user,sim})=>`
+    <div class="sim-user">
+      <span style="font-size:0.9rem">${user.emoji}</span>
+      <span class="sim-name">${user.name}</span>
+      <div class="sim-bar-bg"><div class="sim-bar-fill" style="width:${Math.max(0,sim/max*100).toFixed(1)}%"></div></div>
+      <span class="sim-pct">${(sim*100).toFixed(0)}%</span>
+    </div>
+  `).join('');
+}
+
+function scoreColor(score, max){
+  const pct = max>0 ? score/max : 0;
+  return pct;
+}
+
+function renderMovies(recs){
+  const el = document.getElementById('movie-grid');
+  const countEl = document.getElementById('results-count');
+  
+  if(!recs.length){
+    el.innerHTML='<div style="grid-column:1/-1;font-size:0.9rem;color:var(--muted);font-style:italic;padding:20px 0">No recommendations match your current filters. Try clearing genre filters or rating more films.</div>';
+    countEl.textContent='0 films';
+    return;
+  }
+  
+  const maxScore = recs[0].score || 1;
+  countEl.textContent = `${recs.length} film${recs.length!==1?'s':''}`;
+
+  el.innerHTML = recs.map((m,i)=>{
+    const pct = maxScore>0 ? (m.score/maxScore*100).toFixed(0) : 0;
+    const genreBadge = m.genre[0];
+    return `
+    <div class="movie-card" onclick="openModal(${m.id})" style="animation-delay:${i*0.04}s">
+      <div class="movie-poster" style="background:hsl(${(m.id*37)%360},18%,88%)">
+        <span class="movie-poster-emoji">${m.emoji}</span>
+        <span class="movie-poster-year">${m.year}</span>
+        <span class="poster-score-badge">MATCH ${pct}%</span>
+        <span class="poster-genre-badge">${genreBadge}</span>
+      </div>
+      <div class="movie-info">
+        <div class="movie-title">${m.title}</div>
+        <div class="movie-meta">${m.year} · ${m.genre.join(' / ')}</div>
+        <div class="movie-desc">${m.desc}</div>
+        <div class="movie-score-bar">
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:${pct}%"></div></div>
+          <span class="score-label-text">SCORE</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const ALGO_EXPLAINS = {
+  collab: `<strong>Collaborative Filtering</strong> — Finds viewers with similar taste using <strong>Pearson correlation</strong> on shared ratings, then predicts your score for unseen films as a similarity-weighted average. Works well with dense rating data.`,
+  content: `<strong>Content-Based Filtering</strong> — Builds a tag & genre preference profile from your rated films, then scores unseen films by how well their attributes match your profile. Works even with few other users.`,
+  hybrid: `<strong>Hybrid Blend</strong> — Combines both approaches: <strong>55% collaborative</strong> (user similarity) + <strong>45% content-based</strong> (film attributes), both normalised before blending. Balances cold-start robustness with social signal.`,
+};
+
+function refreshAll(){
+  const {recs, sims} = getRecommendations();
+  renderUsers();
+  renderGenres();
+  renderRatings();
+  renderSimilarity(sims);
+  renderMovies(recs);
+  
+  const user = getCurrentUser();
+  document.getElementById('results-title').textContent = `Picks for ${user.name}`;
+  document.getElementById('algo-explain').innerHTML = ALGO_EXPLAINS[algo];
+  document.getElementById('active-algo-badge').textContent = algo==='collab'?'COLLAB':algo==='content'?'CONTENT':'HYBRID';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INTERACTIONS
+// ═══════════════════════════════════════════════════════════
+function selectUser(id){ currentUser=id; activeGenres.clear(); refreshAll(); }
+function setAlgo(a){
+  algo=a;
+  document.querySelectorAll('.algo-btn').forEach(b=>b.classList.toggle('active',b.dataset.algo===a));
+  refreshAll();
+}
+function toggleGenre(g){
+  if(activeGenres.has(g)) activeGenres.delete(g);
+  else activeGenres.add(g);
+  refreshAll();
+}
+
+// Modal
+function openModal(movieId){
+  const m = MOVIES.find(x=>x.id===movieId);
+  const user = getCurrentUser();
+  pendingMovie = movieId;
+  pendingRating = user.ratings[movieId]||0;
+  document.getElementById('modal-title').textContent = m.title;
+  document.getElementById('modal-meta').textContent = `${m.year} · ${m.genre.join(' / ')} · ${m.emoji}`;
+  document.getElementById('modal-desc').textContent = m.desc;
+  updateStars(pendingRating);
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.add('hidden');
+  pendingMovie=null; pendingRating=0;
+}
+function updateStars(val){
+  document.querySelectorAll('.star-btn').forEach(b=>{
+    b.classList.toggle('on', +b.dataset.v<=val);
+  });
+}
+document.querySelectorAll('.star-btn').forEach(b=>{
+  b.onclick=()=>{ pendingRating=+b.dataset.v; updateStars(pendingRating); };
+  b.onmouseenter=()=>updateStars(+b.dataset.v);
+  b.onmouseleave=()=>updateStars(pendingRating);
+});
+function submitRating(){
+  if(!pendingRating){ closeModal(); return; }
+  const user = getCurrentUser();
+  user.ratings[pendingMovie]=pendingRating;
+  closeModal();
+  refreshAll();
+}
+document.getElementById('modal-overlay').onclick=e=>{
+  if(e.target===document.getElementById('modal-overlay')) closeModal();
+};
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+refreshAll();
+</script>
+</body>
+</html>
