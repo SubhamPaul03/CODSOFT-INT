@@ -202,8 +202,8 @@ CODSOFT/
 
 Made with dedication during the **CODSOFT AI Internship**.
 
-[![GitHub](https://img.shields.io/badge/GitHub-YOUR__USERNAME-black?style=flat-square&logo=github)](https://github.com/YOUR_USERNAME)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat-square&logo=linkedin)](https://linkedin.com/in/YOUR_PROFILE)
+[![GitHub](https://img.shields.io/badge/GitHub-YOUR__USERNAME-black?style=flat-square&logo=github)]([https://github.com/SubhamPaul03)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat-square&logo=linkedin)](https://linkedin.com/in/subhampaul03/)
 
 ---
 
